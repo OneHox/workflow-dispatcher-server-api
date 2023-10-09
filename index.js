@@ -10,8 +10,8 @@ app.use(express.urlencoded({ extended: true }));
 const Redis = require("ioredis");
 const redisClient = new Redis({
   port: 10302,
-  host: process.env.REDIS_HOST,
-  password: process.env.REDIS_PASSWORD,
+  host: "redis-10302.c305.ap-south-1-1.ec2.cloud.redislabs.com",
+  password: "nAFBAZvIyDdC0iTnfZlQElnUZuMCBDjk",
 });
 
 app.post("/manifest", validator.body(Joi.object({
