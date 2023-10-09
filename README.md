@@ -1,2 +1,3 @@
 # workflow-dispatcher-server-api
-express app for taking data from workflow-dispatcher github action and trigger workflow-dispatch in any repository
+
+Build for workflow-dispatch action. That's it

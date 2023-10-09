@@ -1,0 +1,24 @@
+name: CI
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: npm install
+      - name: Start the server
+        run: npm run pm2-start
+      - name: Sleep for 1 minute
+        run: sleep 60
+      - name: Calling the api
+        run: curl http://localhost:3000/
+      - name: Stop the server
+        run: npm run pm2-stop
+      - name: Testing
+        run: npm run test:ci
+      - name: Done
+        run: echo "All done"
