@@ -1,14 +1,18 @@
 const Joi = require("joi");
 const axios = require("axios");
 const express = require("express");
-const { JSONFileManager } = require("./utils/json-file-manager");
 const validator = require("express-joi-validation").createValidator({});
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-const file_name = "data.json";
-const jsonFileManager = new JSONFileManager(file_name);
+const Redis = require("ioredis");
+const redisClient = new Redis({
+  port: 10302,
+  host: process.env.REDIS_HOST,
+  password: process.env.REDIS_PASSWORD,
+});
 
 app.post("/manifest", validator.body(Joi.object({
   group: Joi.string().required(),
@@ -21,15 +25,9 @@ app.post("/manifest", validator.body(Joi.object({
   const { group, watch, token, repository, workflowId, workflowRef } = req.body;
   const watches = watch.split(",").map(e => { return { key: e.trim(), value: false }});
   const workflow_run = `https://api.github.com/repos/${repository}/actions/workflows/${workflowId}/dispatches`;
-  const register = jsonFileManager.read();
 
-  if (register) {
-    register[group] = { workflow_run, workflowRef, workflowId, token, watches, createdAt: Date.now() };
-    jsonFileManager.write(register);
-    res.json({ message: "Manifest has been created" });
-  } else {
-    res.json({ message: "Already registered" });
-  }
+  await redisClient.set(group, JSON.stringify({ workflow_run, workflowRef, workflowId, token, watches, createdAt: Date.now() }));
+  res.json({ message: "Manifest has been created" });
 });
 
 app.post("/vote", validator.body(Joi.object({
@@ -39,20 +37,18 @@ app.post("/vote", validator.body(Joi.object({
   finished: Joi.string().required(),
 })), async (req, res) => {
   const { group, token, workflow, finished } = req.body;
-  const register = jsonFileManager.read();
+  let manifest = await redisClient.get(group);
+  if (!manifest) return res.json({ message: "create a manifest first" });
 
-  const manifest = register[group];
-  if (!manifest) return res.json({ message: "create a manifest in the first place" });
+  manifest = JSON.parse(manifest);
   manifest['watches'] = manifest['watches'].map(e => {
     if (e['key'] == workflow) e['value'] = (finished == 'true');
     return e;
   });
+  await redisClient.set(group, JSON.stringify(manifest));
 
-  register[group] = manifest;
-  jsonFileManager.update(register);
-
-  const not_passed = manifest['watches'].some(e => e['value'] == false);
-  if (!not_passed) {
+  const failed_any = manifest['watches'].some(e => e['value'] == false);
+  if (!failed_any) {
     const hit = manifest['workflow_run'];    
     const payload = {
       "ref": manifest['workflowRef'],
@@ -70,8 +66,7 @@ app.post("/vote", validator.body(Joi.object({
       await axios.post(hit, payload, { headers });
     } catch(err) { console.error(err.message); };
 
-    delete register[group];
-    jsonFileManager.update(register);
+    await redisClient.del(group)
   }
 
   res.json({ message: `Voted: ${workflow}` });
@@ -84,7 +79,9 @@ app.get("/", (req, res) => {
 });
 
 let PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await redisClient.ping();
+  console.log("Connected to Redis Cloud");
   console.log(`App is running on port ${PORT}`);
 });
 
