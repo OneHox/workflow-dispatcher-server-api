@@ -78,10 +78,10 @@ app.get("/", (req, res) => {
 });
 
 let PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
+(async function () {
   await redisClient.ping();
   console.log("Connected to Redis Cloud");
-  console.log(`App is running on port ${PORT}`);
-});
+  app.listen(PORT, async () => console.log(`App is running on port ${PORT}`));
+})();
 
 module.exports = app;
