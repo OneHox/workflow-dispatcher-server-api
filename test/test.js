@@ -7,6 +7,7 @@ chai.use(chaiHttp);
 const expect = chai.expect;
 
 describe("Express App", () => {
+
   it("should manifest a workflow", (done) => {
     chai
       .request(app)
@@ -31,12 +32,11 @@ describe("Express App", () => {
       .post("/vote")
       .send({
         group: "c1",
-        token: "gh-abc",
         finished: "true",
         workflow: "ci-auth",
       })
       .end((err, res) => {
-        expect(res).to.have.status(200);
+        expect(res.body).have.property("message");
         done();
       });
   });
@@ -47,12 +47,11 @@ describe("Express App", () => {
       .post("/vote")
       .send({
         group: "c1",
-        token: "gh-abc",
         finished: "true",
         workflow: "ci-base",
       })
       .end((err, res) => {
-        expect(res).to.have.status(200);
+        expect(res.body).have.property("message");
         done();
       });
   });

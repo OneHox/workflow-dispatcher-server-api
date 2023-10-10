@@ -32,11 +32,10 @@ app.post("/manifest", validator.body(Joi.object({
 
 app.post("/vote", validator.body(Joi.object({
   group: Joi.string().required(),
-  token: Joi.string().required(),
   workflow: Joi.string().required(),
   finished: Joi.string().required(),
 })), async (req, res) => {
-  const { group, token, workflow, finished } = req.body;
+  const { group, workflow, finished } = req.body;
   let manifest = await redisClient.get(group);
   if (!manifest) return res.json({ message: "create a manifest first" });
 
@@ -57,7 +56,7 @@ app.post("/vote", validator.body(Joi.object({
       }
     };
     const headers = {
-      "Authorization": `Bearer ${token}`,
+      "Authorization": `Bearer ${manifest['token']}`,
       "Content-Type": "application/json",
       "Accept": "application/vnd.github.v3+json",
     };
