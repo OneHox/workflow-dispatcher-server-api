@@ -1,6 +1,7 @@
 const Joi = require("joi");
 const axios = require("axios");
 const express = require("express");
+const { rateLimit } = require('express-rate-limit');
 const validator = require("express-joi-validation").createValidator({});
 
 const app = express();
@@ -13,6 +14,16 @@ const redisClient = new Redis({
   host: "redis-10302.c305.ap-south-1-1.ec2.cloud.redislabs.com",
   password: "nAFBAZvIyDdC0iTnfZlQElnUZuMCBDjk",
 });
+
+const limiter = rateLimit({
+	windowMs: 5 * 60 * 1000, // 5 minutes
+	limit: 100, // Limit each IP to 100 requests per `window` (here, per 5 minutes)
+	standardHeaders: 'draft-7', // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+	// store: ... , // Use an external store for more precise rate limiting
+});
+
+app.use(limiter);
 
 app.post("/manifest", validator.body(Joi.object({
   group: Joi.string().required(),
