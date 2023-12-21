@@ -4,19 +4,12 @@ Build for workflow-dispatch action. That's it
 
 This service is running with
 
-1.  Cyclic
-3.  Express
-2.  Redis Cloud
+1.  Sliplane
+2.  Express
 
 ### How does it work
 
-Your Workflow -> workflow-dispatcher -> [this app running on cyclic] -> redis
-
-
-##### IMPORTANT
-
-We are exposing the redis sensitive info here. this is useless for you because this service is in free tier and just created for keeping a very short living data
-
+Your Workflow -> workflow-dispatcher -> [this app running on sliplane]
 
 ## Job of this app
 
