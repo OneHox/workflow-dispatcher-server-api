@@ -1,19 +1,15 @@
 const Joi = require("joi");
 const axios = require("axios");
 const express = require("express");
+const { TinyDB } = require('./tinydb');
 const { rateLimit } = require('express-rate-limit');
 const validator = require("express-joi-validation").createValidator({});
+
+const db = new TinyDB();
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-const Redis = require("ioredis");
-const redisClient = new Redis({
-  port: 10302,
-  host: "redis-10302.c305.ap-south-1-1.ec2.cloud.redislabs.com",
-  password: "nAFBAZvIyDdC0iTnfZlQElnUZuMCBDjk",
-});
 
 const limiter = rateLimit({
 	windowMs: 5 * 60 * 1000, // 5 minutes
@@ -37,7 +33,7 @@ app.post("/manifest", validator.body(Joi.object({
   const watches = watch.split(",").map(e => { return { key: e.trim(), value: false }});
   const workflow_run = `https://api.github.com/repos/${repository}/actions/workflows/${workflowId}/dispatches`;
 
-  await redisClient.set(group, JSON.stringify({ workflow_run, workflowRef, workflowId, token, watches, createdAt: Date.now() }));
+  db.insert(group, JSON.stringify({ workflow_run, workflowRef, workflowId, token, watches, createdAt: Date.now() }));
   res.json({ message: "Manifest has been created" });
 });
 
@@ -47,7 +43,7 @@ app.post("/vote", validator.body(Joi.object({
   finished: Joi.string().required(),
 })), async (req, res) => {
   const { group, workflow, finished } = req.body;
-  let manifest = await redisClient.get(group);
+  let manifest = await db.retrieve(group);
   if (!manifest) return res.json({ message: "create a manifest first" });
 
   manifest = JSON.parse(manifest);
@@ -55,7 +51,7 @@ app.post("/vote", validator.body(Joi.object({
     if (e['key'] == workflow) e['value'] = (finished == 'true');
     return e;
   });
-  await redisClient.set(group, JSON.stringify(manifest));
+  db.insert(group, JSON.stringify(manifest));
 
   const failed_any = manifest['watches'].some(e => e['value'] == false);
   if (!failed_any) {
@@ -76,7 +72,7 @@ app.post("/vote", validator.body(Joi.object({
       await axios.post(hit, payload, { headers });
     } catch(err) { console.error(err.message); };
 
-    await redisClient.del(group)
+    db.delete(group);
   }
 
   res.json({ message: `Voted: ${workflow}` });
@@ -90,8 +86,6 @@ app.get("/", (req, res) => {
 
 let PORT = process.env.PORT || 3000;
 (async function () {
-  await redisClient.ping();
-  console.log("Connected to Redis Cloud");
   app.listen(PORT, async () => console.log(`App is running on port ${PORT}`));
 })();
 
